@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Baseball Live Scoreboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans">
+  <div class="container mx-auto p-4">
+    <h1 class="text-3xl font-bold text-center mb-6">MLB Live Scoreboard</h1>
+
+    <!-- Game State Scoreboard -->
+    <div class="bg-gray-800 shadow-md rounded-lg p-6 mb-6">
+      <h3 class="text-xl font-semibold mb-4">Game State</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <p>Score: Away <span id="awayScore" class="font-bold">0</span> - <span id="homeScore" class="font-bold">0</span> Home</p>
+        <p>Inning: <span id="inning" class="font-bold">1</span> <span id="half" class="font-bold">Top</span>
+          <button onclick="nextHalf()" class="ml-2 bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Next Half</button>
+        </p>
+        <p>Balls: <span id="balls" class="font-bold">0</span> 
+          <button onclick="updateCount('balls', 1)" class="ml-2 bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">+1</button>
+        </p>
+        <p>Strikes: <span id="strikes" class="font-bold">0</span> 
+          <button onclick="updateCount('strikes', 1)" class="ml-2 bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">+1</button>
+        </p>
+        <p>Outs: <span id="outs" class="font-bold">0</span> 
+          <button onclick="out()" class="ml-2 bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">Out</button>
+        </p>
+        <p>Bases: 
+          <span id="base1" class="px-2 py-1 rounded">1B</span>
+          <span id="base2" class="px-2 py-1 rounded">2B</span>
+          <span id="base3" class="px-2 py-1 rounded">3B</span>
+        </p>
+      </div>
+      <div class="mt-4">
+        <p class="font-semibold">Events:</p>
+        <button onclick="hit('single')" class="bg-blue-600 text-white px-3 py-1 rounded mr-2 hover:bg-blue-700">Single</button>
+        <button onclick="hit('double')" class="bg-blue-600 text-white px-3 py-1 rounded mr-2 hover:bg-blue-700">Double</button>
+        <button onclick="hit('triple')" class="bg-blue-600 text-white px-3 py-1 rounded mr-2 hover:bg-blue-700">Triple</button>
+        <button onclick="hit('hr')" class="bg-blue-600 text-white px-3 py-1 rounded mr-2 hover:bg-blue-700">HR</button>
+        <button onclick="walk()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Walk</button>
+      </div>
+      <div class="mt-4 flex space-x-4">
+        <button onclick="undo()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Undo Last Action</button>
+        <button onclick="exportGame()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Export Game</button>
+        <label class="bg-gray-700 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-600">
+          Load Game
+          <input type="file" id="loadGame" accept=".json" onchange="loadGame(event)" class="hidden">
+        </label>
+        <button onclick="clearGame()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Clear Game</button>
+      </div>
+    </div>
+
+    <!-- Lineups and Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Away Team -->
+      <div class="bg-gray-800 shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">Away Team</h3>
+        <div class="mb-4">
+          <input id="awayPlayer" placeholder="Away Player Name" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 w-64 text-gray-100" />
+          <label class="ml-2"><input id="awayPitcher" type="checkbox"> Pitcher?</label>
+          <button onclick="addPlayer('away')" class="ml-2 bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Add</button>
+        </div>
+
+        <h4 class="text-lg font-semibold">Batters</h4>
+        <table class="w-full text-center">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="py-2">#</th>
+              <th>Name</th>
+              <th>RBI</th>
+              <th>H</th>
+              <th>HR</th>
+            </tr>
+          </thead>
+          <tbody id="awayBattersTable"></tbody>
+        </table>
+
+        <h4 class="text-lg font-semibold mt-4">Pitchers</h4>
+        <table class="w-full text-center">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="py-2">Active</th>
+              <th>Name</th>
+              <th>ER</th>
+              <th>IP</th>
+              <th>ERA</th>
+            </tr>
+          </thead>
+          <tbody id="awayPitchersTable"></tbody>
+        </table>
+      </div>
+
+      <!-- Home Team -->
+      <div class="bg-gray-800 shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">Home Team</h3>
+        <div class="mb-4">
+          <input id="homePlayer" placeholder="Home Player Name" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 w-64 text-gray-100" />
+          <label class="ml-2"><input id="homePitcher" type="checkbox"> Pitcher?</label>
+          <button onclick="addPlayer('home')" class="ml-2 bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Add</button>
+        </div>
+
+        <h4 class="text-lg font-semibold">Batters</h4>
+        <table class="w-full text-center">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="py-2">#</th>
+              <th>Name</th>
+              <th>RBI</th>
+              <th>H</th>
+              <th>HR</th>
+            </tr>
+          </thead>
+          <tbody id="homeBattersTable"></tbody>
+        </table>
+
+        <h4 class="text-lg font-semibold mt-4">Pitchers</h4>
+        <table class="w-full text-center">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="py-2">Active</th>
+              <th>Name</th>
+              <th>ER</th>
+              <th>IP</th>
+              <th>ERA</th>
+            </tr>
+          </thead>
+          <tbody id="homePitchersTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let game = JSON.parse(localStorage.getItem('game')) || {
+      away: { batters: [], pitchers: [], activePitcher: null, score: 0 },
+      home: { batters: [], pitchers: [], activePitcher: null, score: 0 },
+      state: {
+        inning: 1,
+        half: 'Top',
+        balls: 0,
+        strikes: 0,
+        outs: 0,
+        bases: { base1: false, base2: false, base3: false },
+        awayBatterIndex: 0,
+        homeBatterIndex: 0
+      }
+    };
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+    function saveGame() {
+      if (history.length >= 10) history.shift();
+      history.push(JSON.parse(JSON.stringify(game)));
+      localStorage.setItem('game', JSON.stringify(game));
+      localStorage.setItem('history', JSON.stringify(history));
+    }
+
+    function undo() {
+      if (history.length > 0) {
+        game = history.pop();
+        localStorage.setItem('game', JSON.stringify(game));
+        localStorage.setItem('history', JSON.stringify(history));
+        renderGameState();
+        renderLineups();
+      }
+    }
+
+    function exportGame() {
+      const dataStr = JSON.stringify(game, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mlb_game_save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function loadGame(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            game = JSON.parse(e.target.result);
+            history = []; // Reset history on load
+            localStorage.setItem('game', JSON.stringify(game));
+            localStorage.setItem('history', JSON.stringify(history));
+            renderGameState();
+            renderLineups();
+          } catch (err) {
+            alert('Invalid game file!');
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    function clearGame() {
+      game = {
+        away: { batters: [], pitchers: [], activePitcher: null, score: 0 },
+        home: { batters: [], pitchers: [], activePitcher: null, score: 0 },
+        state: {
+          inning: 1,
+          half: 'Top',
+          balls: 0,
+          strikes: 0,
+          outs: 0,
+          bases: { base1: false, base2: false, base3: false },
+          awayBatterIndex: 0,
+          homeBatterIndex: 0
+        }
+      };
+      history = [];
+      localStorage.setItem('game', JSON.stringify(game));
+      localStorage.setItem('history', JSON.stringify(history));
+      renderGameState();
+      renderLineups();
+    }
+
+    function renderGameState() {
+      document.getElementById('awayScore').textContent = game.away.score;
+      document.getElementById('homeScore').textContent = game.home.score;
+      document.getElementById('inning').textContent = game.state.inning;
+      document.getElementById('half').textContent = game.state.half;
+      document.getElementById('balls').textContent = game.state.balls;
+      document.getElementById('strikes').textContent = game.state.strikes;
+      document.getElementById('outs').textContent = game.state.outs;
+      document.getElementById('base1').classList.toggle('bg-yellow-500', game.state.bases.base1);
+      document.getElementById('base2').classList.toggle('bg-yellow-500', game.state.bases.base2);
+      document.getElementById('base3').classList.toggle('bg-yellow-500', game.state.bases.base3);
+    }
+
+    function renderLineups() {
+      const awayBattersTable = document.getElementById('awayBattersTable');
+      const awayPitchersTable = document.getElementById('awayPitchersTable');
+      const homeBattersTable = document.getElementById('homeBattersTable');
+      const homePitchersTable = document.getElementById('homePitchersTable');
+      awayBattersTable.innerHTML = '';
+      awayPitchersTable.innerHTML = '';
+      homeBattersTable.innerHTML = '';
+      homePitchersTable.innerHTML = '';
+
+      game.away.batters.forEach((batter, i) => {
+        const isCurrent = game.state.half === 'Top' && i === game.state.awayBatterIndex;
+        awayBattersTable.innerHTML += `<tr class="${isCurrent ? 'bg-green-700' : ''}">
+          <td>${i + 1}</td>
+          <td>${batter.name}</td>
+          <td>${batter.rbi}</td>
+          <td>${batter.h}</td>
+          <td>${batter.hr}</td>
+        </tr>`;
+      });
+
+      game.away.pitchers.forEach((pitcher, i) => {
+        const era = pitcher.ip > 0 ? (pitcher.er * 9 / pitcher.ip).toFixed(2) : '0.00';
+        const isActive = game.away.activePitcher === i;
+        awayPitchersTable.innerHTML += `<tr class="${isActive ? 'bg-blue-700' : ''}">
+          <td><input type="radio" name="awayPitcher" ${isActive ? 'checked' : ''} onclick="setActivePitcher('away', ${i})"></td>
+          <td>${pitcher.name}</td>
+          <td>${pitcher.er}</td>
+          <td>${pitcher.ip.toFixed(1)}</td>
+          <td>${era}</td>
+        </tr>`;
+      });
+
+      game.home.batters.forEach((batter, i) => {
+        const isCurrent = game.state.half === 'Bottom' && i === game.state.homeBatterIndex;
+        homeBattersTable.innerHTML += `<tr class="${isCurrent ? 'bg-green-700' : ''}">
+          <td>${i + 1}</td>
+          <td>${batter.name}</td>
+          <td>${batter.rbi}</td>
+          <td>${batter.h}</td>
+          <td>${batter.hr}</td>
+        </tr>`;
+      });
+
+      game.home.pitchers.forEach((pitcher, i) => {
+        const era = pitcher.ip > 0 ? (pitcher.er * 9 / pitcher.ip).toFixed(2) : '0.00';
+        const isActive = game.home.activePitcher === i;
+        homePitchersTable.innerHTML += `<tr class="${isActive ? 'bg-blue-700' : ''}">
+          <td><input type="radio" name="homePitcher" ${isActive ? 'checked' : ''} onclick="setActivePitcher('home', ${i})"></td>
+          <td>${pitcher.name}</td>
+          <td>${pitcher.er}</td>
+          <td>${pitcher.ip.toFixed(1)}</td>
+          <td>${era}</td>
+        </tr>`;
+      });
+    }
+
+    function addPlayer(team) {
+      const input = document.getElementById(`${team}Player`);
+      const isPitcher = document.getElementById(`${team}Pitcher`).checked;
+      if (input.value) {
+        const player = {
+          name: input.value,
+          rbi: 0,
+          h: 0,
+          hr: 0,
+          er: isPitcher ? 0 : null,
+          ip: isPitcher ? 0 : null
+        };
+        if (isPitcher) {
+          game[team].pitchers.push(player);
+          if (game[team].activePitcher === null) game[team].activePitcher = 0;
+        } else {
+          game[team].batters.push(player);
+        }
+        saveGame();
+        renderLineups();
+        input.value = '';
+        document.getElementById(`${team}Pitcher`).checked = false;
+      }
+    }
+
+    function setActivePitcher(team, index) {
+      game[team].activePitcher = index;
+      saveGame();
+      renderLineups();
+    }
+
+    function updateCount(field, delta) {
+      if (field === 'balls' && game.state.balls + delta === 4) {
+        walk();
+      } else if (field === 'strikes' && game.state.strikes + delta === 3) {
+        out();
+      } else if (game.state[field] + delta >= 0) {
+        game.state[field] += delta;
+        saveGame();
+        renderGameState();
+      }
+    }
+
+    function out() {
+      game.state.outs++;
+      if (game.state.outs === 3) {
+        nextHalf();
+      } else {
+        nextBatter();
+        game.state.balls = 0;
+        game.state.strikes = 0;
+      }
+      updatePitcherIP(0.1);
+      saveGame();
+      renderGameState();
+      renderLineups();
+    }
+
+    function nextHalf() {
+      game.state.outs = 0;
+      game.state.balls = 0;
+      game.state.strikes = 0;
+      game.state.bases = { base1: false, base2: false, base3: false };
+      if (game.state.half === 'Top') {
+        game.state.half = 'Bottom';
+      } else {
+        game.state.half = 'Top';
+        game.state.inning++;
+      }
+      saveGame();
+      renderGameState();
+      renderLineups();
+    }
+
+    function nextBatter() {
+      const team = game.state.half === 'Top' ? 'away' : 'home';
+      const indexKey = `${team}BatterIndex`;
+      game.state[indexKey] = (game.state[indexKey] + 1) % game[team].batters.length;
+    }
+
+    function getCurrentBatter() {
+      const team = game.state.half === 'Top' ? 'away' : 'home';
+      const index = game.state[`${team}BatterIndex`];
+      return game[team].batters[index];
+    }
+
+    function getCurrentPitcher() {
+      const team = game.state.half === 'Top' ? 'home' : 'away';
+      const index = game[team].activePitcher;
+      return index !== null ? game[team].pitchers[index] : null;
+    }
+
+    function updatePitcherIP(delta) {
+      const pitcher = getCurrentPitcher();
+      if (pitcher) {
+        pitcher.ip = (pitcher.ip || 0) + delta;
+      }
+    }
+
+    function hit(type) {
+      const batter = getCurrentBatter();
+      const pitcher = getCurrentPitcher();
+      let runs = 0;
+
+      if (type === 'single') {
+        batter.h++;
+        runs = advanceRunners(1);
+      } else if (type === 'double') {
+        batter.h++;
+        runs = advanceRunners(2);
+      } else if (type === 'triple') {
+        batter.h++;
+        runs = advanceRunners(3);
+      } else if (type === 'hr') {
+        batter.h++;
+        batter.hr++;
+        runs = advanceRunners(4) + 1;
+      }
+
+      batter.rbi += runs;
+      if (pitcher) pitcher.er += runs;
+      updatePitcherIP(0.1);
+      game[game.state.half === 'Top' ? 'away' : 'home'].score += runs;
+      nextBatter();
+      game.state.balls = 0;
+      game.state.strikes = 0;
+      saveGame();
+      renderGameState();
+      renderLineups();
+    }
+
+    function walk() {
+      const runs = advanceRunners(1);
+      const pitcher = getCurrentPitcher();
+      if (pitcher) pitcher.er += runs;
+      updatePitcherIP(0.1);
+      game[game.state.half === 'Top' ? 'away' : 'home'].score += runs;
+      nextBatter();
+      game.state.balls = 0;
+      game.state.strikes = 0;
+      saveGame();
+      renderGameState();
+      renderLineups();
+    }
+
+    function advanceRunners(basesMoved) {
+      let runs = 0;
+      if (basesMoved >= 4) {
+        runs += (game.state.bases.base1 ? 1 : 0) + (game.state.bases.base2 ? 1 : 0) + (game.state.bases.base3 ? 1 : 0);
+        game.state.bases = { base1: false, base2: false, base3: false };
+      } else if (basesMoved === 3) {
+        runs += (game.state.bases.base3 ? 1 : 0) + (game.state.bases.base2 ? 1 : 0) + (game.state.bases.base1 ? 1 : 0);
+        game.state.bases = { base1: false, base2: false, base3: true };
+      } else if (basesMoved === 2) {
+        runs += (game.state.bases.base3 ? 1 : 0) + (game.state.bases.base2 ? 1 : 0);
+        game.state.bases.base3 = game.state.bases.base1;
+        game.state.bases.base2 = true;
+        game.state.bases.base1 = false;
+      } else if (basesMoved === 1) {
+        runs += game.state.bases.base3 ? 1 : 0;
+        game.state.bases.base3 = game.state.bases.base2;
+        game.state.bases.base2 = game.state.bases.base1;
+        game.state.bases.base1 = true;
+      }
+      return runs;
+    }
+
+    // Initial render
+    renderGameState();
+    renderLineups();
+  </script>
+</body>
+</html>
